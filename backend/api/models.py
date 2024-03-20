@@ -4,7 +4,6 @@ from django.db import models
 class TelegramUser(models.Model):
     """Модель пользователя из телеграма."""
     telegram_id = models.BigIntegerField(
-        unique=True,
         blank=True,
         null=True,
         verbose_name='ID в телеграме',
