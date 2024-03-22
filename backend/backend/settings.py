@@ -94,4 +94,5 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-WEBHOOK_FULL_URL = os.getenv('WEBHOOK_FULL_URL')
+EVENT_WHOOK_FULL_URL = os.getenv('EVENT_WHOOK_FULL_URL')
+STATUS_WHOOK_FULL_URL = os.getenv('STATUS_WHOOK_FULL_URL')

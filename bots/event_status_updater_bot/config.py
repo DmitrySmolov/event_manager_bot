@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     """
     event_status_updater_bot_token: SecretStr
     admin_chat_id: SecretStr
+    api_url_base: SecretStr
+    event_status_endpoint: SecretStr
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE, env_file_encoding=ENCODING, extra='ignore'
