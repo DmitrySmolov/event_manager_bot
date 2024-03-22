@@ -31,7 +31,7 @@ class BotCommands(Enum):
     """
     Енум для хранения команд бота.
     """
-    START = ('start', 'Начать заполнение формы регистрации мероприятия.')
+    START = ('start', 'Начать работу.')
 
     @property
     def command(self) -> str:
