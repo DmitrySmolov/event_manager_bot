@@ -93,3 +93,5 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+WEBHOOK_FULL_URL = os.getenv('WEBHOOK_FULL_URL')

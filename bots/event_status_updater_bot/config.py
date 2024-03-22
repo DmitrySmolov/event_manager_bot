@@ -12,18 +12,13 @@ ENV_FILE = os.path.join(BASE_DIR.parent.parent, '.env')
 
 ENCODING = 'utf-8'
 
-URL_PATTERN = (
-    r'^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$'
-)
-
 
 class Settings(BaseSettings):
     """
     Класс настроек приложения.
     """
-    event_registrator_bot_token: SecretStr
-    api_url_base: SecretStr
-    event_endpoint: SecretStr
+    event_status_updater_bot_token: SecretStr
+    admin_chat_id: SecretStr
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE, env_file_encoding=ENCODING, extra='ignore'
@@ -35,7 +30,6 @@ class BotCommands(Enum):
     Енум для хранения команд бота.
     """
     START = ('start', 'Начать заполнение формы регистрации мероприятия.')
-    CANCEL = ('cancel', 'Отменить заполнение текущей формы.')
 
     @property
     def command(self) -> str:

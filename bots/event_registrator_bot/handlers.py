@@ -30,12 +30,20 @@ INCORRECT_LOCATION_TXT = (
     'Ссылка на локацию должна быть валидной.\n\n'
     'Попробуйте ещё раз.'
 )
-PROMPT_ENTER_HOST_TXT = (
+PROMPT_SHARE_HOST_TXT = (
     'Спасибо!\n\n'
     'Теперь нам нужно узнать, кто будет ведущим мероприятия.\n'
     'Если им будете вы, то нажмите на кнопку "Отправить мой контакт".\n'
     'Либо прикрепите контакт другого пользователя Телеграм и отправьте '
     'сообщение.'
+)
+PROMPT_ENTER_HOST_USERNAME_TXT = (
+    'Спасибо, что полелились контактом пользователя {name}.\n\n'
+    'Укажите, пожалуйста, username этого пользователя в Телеграме.'
+)
+INCORRECT_HOST_USERNAME_TXT = (
+    'Для ведущего мероприятия необходимо указать username пользователя.\n'
+    'Попробуйте ещё раз.'
 )
 SEND_MY_CONTACT_KBOARD = ReplyKeyboardMarkup(
     keyboard=[[KeyboardButton(
@@ -49,7 +57,7 @@ SEND_MY_CONTACT_KBOARD = ReplyKeyboardMarkup(
         'другого пользователя Телеграм в ответе.'
     )
 )
-INCORRECT_HOST_TXT = (
+INCORRECT_HOST_CONTACT_TXT = (
     'Для ведущего мероприятия необходимо указать контакт пользователя '
     'Телеграм.\n\n'
     'Попробуйте ещё раз.'
@@ -75,7 +83,8 @@ router = Router()
 class EventRegistratorStates(StatesGroup):
     wait_for_name = State()
     wait_for_location = State()
-    wait_for_host = State()
+    wait_for_host_contact = State()
+    wait_for_host_username = State()
 
 
 @router.message(default_state, CommandStart())
@@ -93,7 +102,8 @@ async def cancel_registration(message: Message, state: FSMContext):
     if current_state in [
         EventRegistratorStates.wait_for_name.state,
         EventRegistratorStates.wait_for_location.state,
-        EventRegistratorStates.wait_for_host.state,
+        EventRegistratorStates.wait_for_host_contact.state,
+        EventRegistratorStates.wait_for_host_username.state
     ]:
         await state.clear()
         await message.answer(
@@ -136,10 +146,10 @@ async def got_incorrect_name(message: Message):
 async def got_correct_location(message: Message, state: FSMContext):
     await state.update_data(location=message.text)
     await message.answer(
-        text=PROMPT_ENTER_HOST_TXT,
+        text=PROMPT_SHARE_HOST_TXT,
         reply_markup=SEND_MY_CONTACT_KBOARD
     )
-    await state.set_state(EventRegistratorStates.wait_for_host)
+    await state.set_state(EventRegistratorStates.wait_for_host_contact)
 
 
 @router.message(
@@ -151,28 +161,71 @@ async def got_incorrect_location(message: Message):
 
 
 @router.message(
-    EventRegistratorStates.wait_for_host,
+    EventRegistratorStates.wait_for_host_contact,
     F.contact |
     F.text.startswith('https://t.me/') |
     F.text.startswith('@')
 )
-async def got_correct_host(message: Message, state: FSMContext):
+async def got_correct_host_contact(message: Message, state: FSMContext):
     host = {}
     if message.contact:
         host_telegram_id = message.contact.user_id
         host["telegram_id"] = host_telegram_id
         if host_telegram_id == message.from_user.id:
             host["username"] = message.from_user.username
+        else:
+            await state.update_data(host=host)
+            name = message.contact.first_name
+            await message.answer(
+                text=PROMPT_ENTER_HOST_USERNAME_TXT.format(name=name),
+                reply_markup=ReplyKeyboardRemove()
+            )
+            return await state.set_state(
+                EventRegistratorStates.wait_for_host_username
+            )
     elif message.text.startswith('https://t.me/'):
         host["username"] = message.text.split('/')[-1]
     elif message.text.startswith('@'):
         host["username"] = message.text[1:]
+    await state.update_data(host=host)
+    return await _got_all_data(message, state)
+
+
+@router.message(
+    EventRegistratorStates.wait_for_host_contact
+)
+async def got_incorrect_host_contact(message: Message):
+    await message.answer(INCORRECT_HOST_CONTACT_TXT)
+    return
+
+
+@router.message(
+    EventRegistratorStates.wait_for_host_username,
+    F.text
+)
+async def got_correct_host_username(message: Message, state: FSMContext):
+    data = await state.get_data()
+    host = data.get("host", {})
+    host["username"] = message.text
+    await state.update_data(host=host)
+    return await _got_all_data(message, state)
+
+
+@router.message(
+    EventRegistratorStates.wait_for_host_username
+)
+async def got_incorrect_host_username(message: Message):
+    await message.answer(INCORRECT_HOST_USERNAME_TXT)
+    return
+
+
+async def _got_all_data(message: Message, state: FSMContext):
+    data = await state.get_data()
     created_by = {
         "telegram_id": message.from_user.id,
         "username": message.from_user.username
     }
-    data = await state.get_data()
-    event = PydanticEvent(host=host, created_by=created_by, **data)
+    event = PydanticEvent(created_by=created_by, **data)
     try:
         response = await create_new_event(event)
         if response.status == 201:
@@ -186,11 +239,3 @@ async def got_correct_host(message: Message, state: FSMContext):
             reply_markup=ReplyKeyboardRemove()
         )
     await state.clear()
-
-
-@router.message(
-    EventRegistratorStates.wait_for_host
-)
-async def got_incorrect_host(message: Message):
-    await message.answer(INCORRECT_HOST_TXT)
-    return
